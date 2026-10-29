@@ -1,0 +1,146 @@
+// =====================================================================
+// Google Sheets sync for the TEDxVictoriaPeak Finance Portal.
+// Adds a "TEDx Finance" menu: Refresh now, Set up connection,
+// daily auto-refresh. Rebuilds every tab of the Financial Report Pack
+// from the portal, keeping the period you chose on the Cover tab.
+// =====================================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('TEDx Finance')
+    .addItem('Refresh now', 'refreshReportPack')
+    .addSeparator()
+    .addItem('Set up connection', 'setupConnection')
+    .addItem('Turn on daily auto-refresh (6am HK)', 'installDailyTrigger')
+    .addItem('Turn off auto-refresh', 'removeTriggers')
+    .addToUi()
+}
+
+function setupConnection() {
+  var ui = SpreadsheetApp.getUi()
+  var props = PropertiesService.getScriptProperties()
+  var steps = [
+    ['SUPABASE_URL', 'Supabase Project URL', 'e.g. https://abcdefgh.supabase.co'],
+    ['SUPABASE_ANON_KEY', 'Supabase anon / publishable key', 'The same key you put in GitHub as VITE_SUPABASE_ANON_KEY'],
+    ['EXPORT_KEY', 'Google Sheets key from the portal', 'Portal › Reports › Google Sheets › Create key (starts with gsk_)'],
+  ]
+  for (var i = 0; i < steps.length; i++) {
+    var r = ui.prompt(steps[i][1], steps[i][2], ui.ButtonSet.OK_CANCEL)
+    if (r.getSelectedButton() !== ui.Button.OK) return
+    var v = r.getResponseText().trim().replace(/\/+$/, '')
+    if (!v) { ui.alert('Nothing entered. Setup stopped.'); return }
+    props.setProperty(steps[i][0], v)
+  }
+  ui.alert('Saved. Now choose TEDx Finance › Refresh now.')
+}
+
+function fetchReportData_() {
+  var p = PropertiesService.getScriptProperties()
+  var url = p.getProperty('SUPABASE_URL'), anon = p.getProperty('SUPABASE_ANON_KEY'), key = p.getProperty('EXPORT_KEY')
+  if (!url || !anon || !key) throw new Error('Not connected yet. Choose TEDx Finance › Set up connection.')
+  var res = UrlFetchApp.fetch(url + '/rest/v1/rpc/report_data', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { apikey: anon, Authorization: 'Bearer ' + anon },
+    payload: JSON.stringify({ p_key: key }),
+  })
+  if (res.getResponseCode() !== 200) {
+    var msg = res.getContentText()
+    try { msg = JSON.parse(msg).message || msg } catch (e) {}
+    throw new Error('The portal refused the request (' + res.getResponseCode() + '): ' + msg)
+  }
+  return JSON.parse(res.getContentText())
+}
+
+function toDate_(s) { var p = String(s).slice(0, 10).split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])) }
+function colLetter_(n) { var s = ''; n++; while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s }
+
+function refreshReportPack() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet()
+  try {
+    var data = fetchReportData_()
+    var sheets = buildPack(data)
+    // Keep the period the user chose on the Cover tab
+    var old = ss.getSheetByName('Cover')
+    if (old) {
+      var keep = old.getRange('C5:C7').getValues()
+      if (keep[0][0] instanceof Date) sheets[0].rows[4][2] = { v: keep[0][0], s: 'dateIn' }
+      if (keep[1][0] instanceof Date) sheets[0].rows[5][2] = { v: keep[1][0], s: 'dateIn' }
+      if (typeof keep[2][0] === 'number' && keep[2][0] > 2000) sheets[0].rows[6][2] = { v: keep[2][0], s: 'intIn' }
+    }
+    sheets.forEach(function (sh, i) { renderSheet_(ss, sh, i) })
+    var blank = ss.getSheetByName('Sheet1') || ss.getSheetByName('Sheet 1')
+    if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank)
+    ss.setActiveSheet(ss.getSheetByName('Cover'))
+    ss.toast('Updated from the Finance Portal (' + data.generated_at + ')', 'TEDx Finance', 5)
+  } catch (e) {
+    ss.toast(String(e.message || e), 'TEDx Finance – refresh failed', 15)
+    throw e
+  }
+}
+
+function renderSheet_(ss, sh, index) {
+  var sheet = ss.getSheetByName(sh.name) || ss.insertSheet(sh.name)
+  ss.setActiveSheet(sheet); ss.moveActiveSheet(index + 1)
+  sheet.clear(); sheet.setFrozenRows(0)
+  var width = Math.max(1, sh.widths.length, sh.rows.reduce(function (m, r) { return Math.max(m, r.length) }, 0))
+  var styleCells = {}
+  var values = sh.rows.map(function (row, ri) {
+    var out = []
+    for (var ci = 0; ci < width; ci++) {
+      var c = row[ci], v = ''
+      if (c !== null && c !== undefined && c !== '') {
+        if (typeof c !== 'object' || c instanceof Date) c = { v: c }
+        if (c.f) v = '=' + c.f
+        else if ((c.s === 'date' || c.s === 'dateIn') && c.v && !(c.v instanceof Date)) v = toDate_(c.v)
+        else if (typeof c.v === 'boolean') v = c.v ? 'Yes' : ''
+        else if (typeof c.v === 'string' && /^[=+@]/.test(c.v)) v = "'" + c.v
+        else v = c.v === null || c.v === undefined ? '' : c.v
+        if (c.s) (styleCells[c.s] = styleCells[c.s] || []).push([ri, ci])
+      }
+      out.push(v)
+    }
+    return out
+  })
+  if (values.length) sheet.getRange(1, 1, values.length, width).setValues(values)
+
+  Object.keys(styleCells).forEach(function (name) {
+    var st = PACK_STYLES[name]; if (!st) return
+    // group cells into vertical runs per column to keep it fast
+    var byCol = {}
+    styleCells[name].forEach(function (rc) { (byCol[rc[1]] = byCol[rc[1]] || []).push(rc[0]) })
+    var a1 = []
+    Object.keys(byCol).forEach(function (ci) {
+      var rows = byCol[ci].sort(function (a, b) { return a - b }), start = rows[0], prev = rows[0]
+      for (var k = 1; k <= rows.length; k++) {
+        if (k < rows.length && rows[k] === prev + 1) { prev = rows[k]; continue }
+        var L = colLetter_(Number(ci))
+        a1.push(L + (start + 1) + (prev > start ? ':' + L + (prev + 1) : ''))
+        if (k < rows.length) { start = rows[k]; prev = rows[k] }
+      }
+    })
+    for (var i = 0; i < a1.length; i += 400) {
+      var rl = sheet.getRangeList(a1.slice(i, i + 400))
+      if (st.num) rl.setNumberFormat(st.num)
+      if (st.bold) rl.setFontWeight('bold')
+      if (st.italic) rl.setFontStyle('italic')
+      if (st.size) rl.setFontSize(st.size)
+      if (st.color) rl.setFontColor(st.color)
+      if (st.fill) rl.setBackground(st.fill)
+      if (st.top) rl.setBorder(true, null, null, null, null, null, '#0B2440', SpreadsheetApp.BorderStyle.SOLID)
+    }
+  })
+  sh.widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, Math.round(w * 7.5)) })
+  if (sh.freeze) sheet.setFrozenRows(sh.freeze)
+  sheet.setHiddenGridlines(sh.freeze === 0)
+}
+
+function installDailyTrigger() {
+  removeTriggers()
+  ScriptApp.newTrigger('refreshReportPack').timeBased().everyDays(1).atHour(6).inTimezone('Asia/Hong_Kong').create()
+  SpreadsheetApp.getUi().alert('Daily auto-refresh is on (around 6am Hong Kong time). You can still use Refresh now anytime.')
+}
+
+function removeTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'refreshReportPack') ScriptApp.deleteTrigger(t)
+  })
+}
