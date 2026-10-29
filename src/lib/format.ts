@@ -2,7 +2,7 @@ export const money = (cents: number | null | undefined, opts: { sign?: boolean }
   const v = Number(cents || 0) / 100
   const s = Math.abs(v).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const neg = v < 0
-  if (opts.sign) return (neg ? '-' : '+') + 'HK$' + s
+  if (opts.sign) return (v === 0 ? '' : neg ? '-' : '+') + 'HK$' + s
   return (neg ? '-' : '') + 'HK$' + s
 }
 
