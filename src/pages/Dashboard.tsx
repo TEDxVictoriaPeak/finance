@@ -8,7 +8,8 @@ import MonthlyFeed from '../components/MonthlyFeed'
 export function FySelect({ fy, setFy }: { fy: number; setFy: (n: number) => void }) {
   const app = useApp()
   const m = app.settings?.fy_start_month || 7
-  const opts = [app.currentFy + 1, app.currentFy, app.currentFy - 1, app.currentFy - 2]
+  // Project years only: FY 2026–27 and FY 2027–28 (plus the current one if time moves past them)
+  const opts = Array.from(new Set([2027, 2028, app.currentFy])).sort((a, b) => a - b)
   return (
     <select className="fy-select" aria-label="Financial year" value={fy} onChange={(e) => setFy(Number(e.target.value))}>
       {opts.map((y) => <option key={y} value={y}>FY {fyLabel(y, m)}</option>)}
