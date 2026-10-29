@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
 import { useApp } from '../lib/app'
-import { daysBetween, fmtDate, fyLabel, money, monthLabel, today } from '../lib/format'
+import { daysBetween, fmtDate, fyLabel, money, today } from '../lib/format'
 import { Bar, Card, Empty, ErrorBox, Loading, Section } from '../components/ui'
+import MonthlyFeed from '../components/MonthlyFeed'
 
 export function FySelect({ fy, setFy }: { fy: number; setFy: (n: number) => void }) {
   const app = useApp()
@@ -12,29 +13,6 @@ export function FySelect({ fy, setFy }: { fy: number; setFy: (n: number) => void
     <select className="fy-select" aria-label="Financial year" value={fy} onChange={(e) => setFy(Number(e.target.value))}>
       {opts.map((y) => <option key={y} value={y}>FY {fyLabel(y, m)}</option>)}
     </select>
-  )
-}
-
-function MonthlyChart({ data }: { data: { month: string; income: number; expense: number }[] }) {
-  const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expense)))
-  const w = 100 / Math.max(1, data.length)
-  return (
-    <div className="chart">
-      <svg viewBox="0 0 100 52" preserveAspectRatio="none" role="img" aria-label="Income and expenses by month">
-        {data.map((d, i) => {
-          const hi = (d.income / max) * 46, he = (d.expense / max) * 46
-          return (
-            <g key={d.month}>
-              <rect x={i * w + w * 0.14} y={48 - hi} width={w * 0.34} height={hi} rx="0.6" className="c-income"><title>{monthLabel(d.month)} income {money(d.income)}</title></rect>
-              <rect x={i * w + w * 0.52} y={48 - he} width={w * 0.34} height={he} rx="0.6" className="c-expense"><title>{monthLabel(d.month)} expenses {money(d.expense)}</title></rect>
-            </g>
-          )
-        })}
-        <line x1="0" x2="100" y1="48" y2="48" className="c-axis" />
-      </svg>
-      <div className="chart-labels">{data.map((d) => <span key={d.month}>{monthLabel(d.month).slice(0, 3)}</span>)}</div>
-      <div className="legend"><span><i className="sw income" />Income</span><span><i className="sw expense" />Expenses</span></div>
-    </div>
   )
 }
 
@@ -148,10 +126,6 @@ export default function Dashboard() {
             </Section>
           </div>
 
-          <Section title="Income vs expenses by month">
-            <Card><MonthlyChart data={d.monthly} /></Card>
-          </Section>
-
           <div className="grid2">
             <Section title="Budget used by division">
               <Card className="list">
@@ -190,20 +164,7 @@ export default function Dashboard() {
             </Section>
           </div>
 
-          <Section title="Latest approved entries" right={<a href="#/transactions" className="small">See all</a>}>
-            <Card className="list">
-              {d.recent.length === 0 && <Empty>Nothing approved yet.</Empty>}
-              {d.recent.map((x: any) => (
-                <div key={x.ref} className="list-row">
-                  <span className="grow">
-                    <span className="block">{x.title}</span>
-                    <span className="small muted">{x.ref} · {fmtDate(x.date)}{x.division ? ` · ${x.division}` : ''}{x.category ? ` · ${x.category}` : ''}</span>
-                  </span>
-                  <b className={x.type === 'income' ? 'green' : 'red'}>{x.type === 'income' ? money(x.amount, { sign: true }) : money(-x.amount, { sign: true })}</b>
-                </div>
-              ))}
-            </Card>
-          </Section>
+          <MonthlyFeed fy={fy} />
         </>
       )}
     </div>
