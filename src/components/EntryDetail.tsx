@@ -53,6 +53,30 @@ export default function EntryDetail({ entry, onClose, onChanged }: { entry: any;
 
   const canEdit = ['returned', ...PENDING].includes(entry.status) && entry.type !== 'opening' &&
     (app.finance || app.organizer || app.profile?.division_id === entry.division_id || entry.submitted_by === app.profile?.id)
+  const canDelete = ['returned', 'rejected', ...PENDING].includes(entry.status) && entry.type !== 'opening' &&
+    (app.finance || app.organizer || app.profile?.division_id === entry.division_id || entry.submitted_by === app.profile?.id)
+
+  const removeFile = async (path: string | null) => {
+    if (path) await sb.storage.from('receipts').remove([path])
+  }
+  const deleteEntry = async () => {
+    const ok = await dlg.ask({ title: `Delete ${entry.ref}?`, message: 'This entry was never posted, so deleting it does not change any balance. It is removed for good (a record stays in the Activity log).', input: false, confirmText: 'Delete', danger: true })
+    if (!ok) return
+    setBusy(true); setErr(null)
+    const { data, error } = await sb.rpc('delete_entry', { p_id: entry.id })
+    setBusy(false)
+    if (error) return setErr(errText(error))
+    await removeFile(data as string | null)
+    onChanged(); onClose()
+  }
+  const removeReceipt = async () => {
+    const ok = await dlg.ask({ title: 'Remove receipt?', message: 'The receipt file is deleted. You can attach a new one with Edit.', input: false, confirmText: 'Remove', danger: true })
+    if (!ok) return
+    const { data, error } = await sb.rpc('remove_receipt', { p_id: entry.id })
+    if (error) return setErr(errText(error))
+    await removeFile(data as string | null)
+    onChanged(); onClose()
+  }
   const isIncome = entry.type === 'income'
   const sign = isIncome && !entry.in_kind ? 1 : entry.type === 'expense' ? -1 : 0
 
@@ -93,7 +117,12 @@ export default function EntryDetail({ entry, onClose, onChanged }: { entry: any;
           {entry.void_reason && <><dt>Void reason</dt><dd>{entry.void_reason}</dd></>}
         </dl>
 
-        {entry.receipt_path && <button className="btn ghost" onClick={openReceipt}>View receipt</button>}
+        {entry.receipt_path && (
+          <div className="row gap wrap">
+            <button className="btn ghost" onClick={openReceipt}>View receipt</button>
+            {canEdit && <button className="btn danger-ghost small-btn" onClick={removeReceipt}>Remove receipt</button>}
+          </div>
+        )}
 
         <div>
           <h4 className="small-head">Approval trail</h4>
@@ -160,6 +189,7 @@ export default function EntryDetail({ entry, onClose, onChanged }: { entry: any;
 
         <div className="row gap wrap end">
           {canEdit && <button className="btn ghost" onClick={() => setEdit(true)}>Edit</button>}
+          {canDelete && <button className="btn danger-ghost" disabled={busy} onClick={deleteEntry}>Delete</button>}
           {app.finAdmin && ['approved', 'paid', 'posted'].includes(entry.status) && entry.type !== 'opening' && (
             <button className="btn danger-ghost" disabled={busy} onClick={() => withReason('void', 'Void entry', true)}>Void</button>
           )}

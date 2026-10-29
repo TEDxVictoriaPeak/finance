@@ -159,10 +159,15 @@ export default function Finance() {
           )}
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Account</th><th>Date</th><th className="num">Statement</th><th className="num">System</th><th className="num">Difference</th><th>By</th></tr></thead>
+              <thead><tr><th>Account</th><th>Date</th><th className="num">Statement</th><th className="num">System</th><th className="num">Difference</th><th>By</th>{app.finAdmin && <th />}</tr></thead>
               <tbody>
                 {recons.map((r) => (
-                  <tr key={r.id}><td>{app.nameOf.account(r.account_id)}</td><td className="nowrap">{fmtDate(r.statement_date)}</td><td className="num">{money(r.statement_balance)}</td><td className="num">{money(r.system_balance)}</td><td className={`num ${r.difference ? 'red' : 'green'}`}>{r.difference ? money(r.difference) : 'Matched'}</td><td>{r.actor_name}</td></tr>
+                  <tr key={r.id}><td>{app.nameOf.account(r.account_id)}</td><td className="nowrap">{fmtDate(r.statement_date)}</td><td className="num">{money(r.statement_balance)}</td><td className="num">{money(r.system_balance)}</td><td className={`num ${r.difference ? 'red' : 'green'}`}>{r.difference ? money(r.difference) : 'Matched'}</td><td>{r.actor_name}</td>{app.finAdmin && <td><button className="link-btn red" onClick={async () => {
+                    const ok = await dlg.ask({ title: 'Delete this check?', message: 'Removes this reconciliation record only. No balance changes.', input: false, confirmText: 'Delete', danger: true })
+                    if (!ok) return
+                    const { error } = await sb.rpc('delete_reconciliation', { p_id: r.id })
+                    if (error) setErr(errText(error)); else refresh()
+                  }}>Delete</button></td>}</tr>
                 ))}
               </tbody>
             </table>

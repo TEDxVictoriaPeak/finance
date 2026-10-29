@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
 import { useApp, Sponsor } from '../lib/app'
 import { centsToInput, csvMoney, downloadCSV, money, parseMoney, today } from '../lib/format'
-import { Badge, Bar, Card, Empty, ErrorBox, Field, Modal, Section } from '../components/ui'
+import { Badge, Bar, Card, Empty, ErrorBox, Field, Modal, Section, useDialog } from '../components/ui'
 import EntryForm from '../components/EntryForm'
 
 const STATUSES = [['prospect', 'Prospect'], ['agreed', 'Agreed'], ['invoiced', 'Invoiced'], ['paid', 'Paid'], ['lost', 'Lost']]
@@ -116,6 +116,7 @@ export default function Sponsors() {
 }
 
 function SponsorEdit({ s, onClose, onSaved }: { s: Partial<Sponsor>; onClose: () => void; onSaved: () => void }) {
+  const dlg = useDialog()
   const [f, setF] = useState<any>({ ...s, committed: centsToInput(s.committed) || '0.00' })
   const [err, setErr] = useState<string | null>(null)
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
@@ -141,7 +142,15 @@ function SponsorEdit({ s, onClose, onSaved }: { s: Partial<Sponsor>; onClose: ()
         <Field label="Benefits delivered so far"><textarea rows={2} value={f.benefits_delivered || ''} onChange={set('benefits_delivered')} /></Field>
         <Field label="Notes"><textarea rows={2} value={f.notes || ''} onChange={set('notes')} /></Field>
         <ErrorBox msg={err} />
-        <div className="row gap end"><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" onClick={save}>Save</button></div>
+        <div className="row gap between wrap">
+          {s.id ? <button className="btn danger-ghost" onClick={async () => {
+            const ok = await dlg.ask({ title: `Delete ${s.name}?`, message: 'Only possible if there are no invoices or payments for this sponsor. Otherwise set the status to Lost.', input: false, confirmText: 'Delete', danger: true })
+            if (!ok) return
+            const { error } = await sb.rpc('delete_sponsor', { p_id: s.id })
+            if (error) setErr(errText(error)); else onSaved()
+          }}>Delete sponsor</button> : <span />}
+          <div className="row gap"><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" onClick={save}>Save</button></div>
+        </div>
       </div>
     </Modal>
   )

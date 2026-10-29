@@ -26,9 +26,10 @@ export default function Settings() {
   )
 }
 
-function NameList({ items, onAdd, onRename, onArchive, placeholder }: {
+function NameList({ items, onAdd, onRename, onArchive, onDelete, placeholder, locked }: {
   items: { id: string; name: string; archived: boolean }[]; placeholder: string
   onAdd: (n: string) => Promise<any>; onRename: (id: string, n: string) => Promise<any>; onArchive: (id: string, a: boolean) => Promise<any>
+  onDelete?: (id: string) => Promise<any>; locked?: (id: string) => boolean
 }) {
   const dlg = useDialog()
   const [name, setName] = useState('')
@@ -47,6 +48,12 @@ function NameList({ items, onAdd, onRename, onArchive, placeholder }: {
           <span className="grow">{it.name}{it.archived && <Badge tone="gray">Archived</Badge>}</span>
           <button className="btn ghost small-btn" onClick={async () => { const n = await dlg.ask({ title: 'Rename', label: 'New name', required: true, confirmText: 'Rename' }); if (n) wrap(onRename(it.id, n)) }}>Rename</button>
           <button className="btn ghost small-btn" onClick={() => wrap(onArchive(it.id, !it.archived))}>{it.archived ? 'Restore' : 'Archive'}</button>
+          {onDelete && !(locked && locked(it.id)) && (
+            <button className="btn danger-ghost small-btn" onClick={async () => {
+              const ok = await dlg.ask({ title: `Delete “${it.name}”?`, message: 'Only possible if it was never used in a transaction. Otherwise archive it.', input: false, confirmText: 'Delete', danger: true })
+              if (ok) wrap(onDelete(it.id))
+            }}>Delete</button>
+          )}
         </div>
       ))}
     </Card>
@@ -62,7 +69,8 @@ function Divisions() {
       <NameList items={app.divisions} placeholder="New division, e.g. Production"
         onAdd={async (n) => done(await sb.from('divisions').insert({ name: n, sort: app.divisions.length }))}
         onRename={async (id, n) => done(await sb.from('divisions').update({ name: n }).eq('id', id))}
-        onArchive={async (id, a) => done(await sb.from('divisions').update({ archived: a }).eq('id', id))} />
+        onArchive={async (id, a) => done(await sb.from('divisions').update({ archived: a }).eq('id', id))}
+        onDelete={async (id) => done(await sb.rpc('delete_division', { p_id: id }))} />
     </Section>
   )
 }
@@ -80,13 +88,16 @@ function Categories() {
         <NameList items={exp} placeholder="New expense category"
           onAdd={async (n) => done(await sb.from('categories').insert({ name: n, kind: 'expense', sort: exp.length }))}
           onRename={async (id, n) => done(await sb.from('categories').update({ name: n }).eq('id', id))}
-          onArchive={async (id, a) => done(await sb.from('categories').update({ archived: a }).eq('id', id))} />
+          onArchive={async (id, a) => done(await sb.from('categories').update({ archived: a }).eq('id', id))}
+          onDelete={async (id) => done(await sb.rpc('delete_category', { p_id: id }))} />
       </Section>
       <Section title="Income categories">
         <NameList items={inc} placeholder="New income category"
           onAdd={async (n) => done(await sb.from('categories').insert({ name: n, kind: 'income', sort: inc.length }))}
           onRename={async (id, n) => done(await sb.from('categories').update({ name: n }).eq('id', id))}
-          onArchive={async (id, a) => done(await sb.from('categories').update({ archived: a }).eq('id', id))} />
+          onArchive={async (id, a) => done(await sb.from('categories').update({ archived: a }).eq('id', id))}
+          onDelete={async (id) => done(await sb.rpc('delete_category', { p_id: id }))}
+          locked={(id) => !!app.accounts.find((a) => a.id === app.categories.find((c) => c.id === id)?.account_id)?.system_key} />
       </Section>
     </>
   )
@@ -156,6 +167,12 @@ function Accounts() {
     const { error } = await sb.from('accounts').update({ name: n }).eq('id', id)
     if (error) setErr(errText(error)); else app.reload()
   }
+  const remove = async (id: string, name: string) => {
+    const ok = await dlg.ask({ title: `Delete “${name}”?`, message: 'Only possible if this account was never used. Otherwise archive it.', input: false, confirmText: 'Delete', danger: true })
+    if (!ok) return
+    const { error } = await sb.rpc('delete_account', { p_id: id })
+    if (error) setErr(errText(error)); else { setErr(null); app.reload() }
+  }
   const archive = async (id: string, a: boolean) => {
     const { error } = await sb.from('accounts').update({ archived: a }).eq('id', id)
     if (error) setErr(errText(error)); else app.reload()
@@ -168,7 +185,7 @@ function Accounts() {
           {cash.map((a) => (
             <div key={a.id} className={`list-row ${a.archived ? 'muted' : ''}`}>
               <span className="grow">{a.code} · {a.name}{a.archived && <Badge tone="gray">Archived</Badge>}</span>
-              {app.finAdmin && <><button className="btn ghost small-btn" onClick={() => rename(a.id)}>Rename</button><button className="btn ghost small-btn" onClick={() => archive(a.id, !a.archived)}>{a.archived ? 'Restore' : 'Archive'}</button></>}
+              {app.finAdmin && <><button className="btn ghost small-btn" onClick={() => rename(a.id)}>Rename</button><button className="btn ghost small-btn" onClick={() => archive(a.id, !a.archived)}>{a.archived ? 'Restore' : 'Archive'}</button><button className="btn danger-ghost small-btn" onClick={() => remove(a.id, a.name)}>Delete</button></>}
             </div>
           ))}
         </Card>
