@@ -16,5 +16,6 @@ export function errText(e: any): string {
   if (m.includes('Failed to fetch')) return 'No connection. Check your internet and try again.'
   if (m.includes('row-level security') || m.includes('permission denied')) return 'You are not allowed to do this. Please log in again.'
   if (m.includes('relation') && m.includes('does not exist')) return 'The database is not updated yet: run supabase/simple-setup.sql in Supabase (see the guide).'
+  if (/column .*status.* does not exist|could not find the 'status' column/i.test(m)) return 'The database needs a small update: run supabase/update-income.sql in Supabase › SQL Editor.'
   return m.replace(/^OVER_BUDGET:\s*/, 'Over budget: ')
 }

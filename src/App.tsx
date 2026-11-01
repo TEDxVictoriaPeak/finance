@@ -53,7 +53,7 @@ function Shell() {
     if (m) return s.staff ? (m[2] ? <ItemForm id={m[1]} /> : <ItemView id={m[1]} />) : <Login />
     if (route === '/print') return s.staff ? <PrintAll /> : <Login />
     if (route === '/report') return s.staff ? <Report /> : <Login />
-    if (route === '/funding') return s.staff ? <FundingPage /> : <Login />
+    if (route === '/funding' || route === '/income') return s.staff ? <FundingPage /> : <Login />
     if (route === '/settings') return s.staff ? <Settings /> : <Login />
     if (route === '/login') return <Login />
     if (route === '/more') return <More />
@@ -66,7 +66,7 @@ function Shell() {
     ['/expenses', 'Expenses', 'list', s.staff],
     ['/add', 'Add expense', 'plus', s.staff],
     ['/report', 'Report', 'report', s.staff],
-    ['/funding', 'Funding', 'money', s.staff],
+    ['/income', 'Income', 'money', s.staff],
     ['/print', 'Print item sheets', 'print', s.staff],
     ['/settings', 'Settings', 'gear', s.staff],
     ['/login', 'Log in', 'login', !s.staff],

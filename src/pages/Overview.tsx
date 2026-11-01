@@ -3,7 +3,7 @@ import { sb, errText } from '../lib/supabase'
 import { hk, useStore } from '../lib/store'
 import { Card, Empty, ErrorBox, Loading, Section } from '../components/ui'
 
-type Pub = { private: boolean; project_name: string; club_name: string; items?: any[]; funding_total?: number; funding_by_kind?: Record<string, number> }
+type Pub = { private: boolean; project_name: string; club_name: string; items?: any[]; funding_total?: number; funding_by_kind?: Record<string, number>; promised_total?: number }
 
 export default function Overview() {
   const s = useStore()
@@ -26,6 +26,8 @@ export default function Overview() {
   const items = d.items || []
   const total = items.reduce((t, i) => t + Number(i.amount), 0)
   const funding = Number(d.funding_total || 0)
+  const promised = Number(d.promised_total || 0)
+  const kinds = ([['sponsor', 'Sponsors'], ['club', 'Club underwriting'], ['ticket', 'Ticket sales'], ['other', 'Other']] as const).map(([k, l]) => ({ k, l, sum: Number(d.funding_by_kind?.[k] || 0) })).filter((x) => x.sum)
   const balance = funding - total
   const missing = items.filter((i) => !i.has_proof).length
   const byCat = s.categories.map((c) => {
@@ -37,16 +39,25 @@ export default function Overview() {
     <div className="stack">
       <Card className="hero">
         <h1>{d.project_name}</h1>
-        <p>{d.club_name} · Expenses and funding, updated as soon as an item is added.</p>
+        <p>{d.club_name} · Income and expenses, updated as soon as an item is added.</p>
         {s.staff && <div className="row gap wrap"><a className="btn primary" href="#/add">Add expense</a><a className="btn ghost" href="#/report">See report</a></div>}
       </Card>
 
       <div className="kpis">
         <Card className="kpi navy"><span className="kpi-label">Total expenses</span><span className="kpi-value">{hk(total)}</span><span className="kpi-sub">{items.length} items</span></Card>
-        <Card className="kpi"><span className="kpi-label">Funding received</span><span className="kpi-value green">{hk(funding)}</span><span className="kpi-sub">club, sponsors, tickets</span></Card>
-        <Card className="kpi"><span className="kpi-label">{balance >= 0 ? 'Remaining' : 'Short by'}</span><span className={`kpi-value ${balance >= 0 ? 'green' : 'red'}`}>{hk(Math.abs(balance))}</span><span className="kpi-sub">funding − expenses</span></Card>
+        <Card className="kpi"><span className="kpi-label">Income received</span><span className="kpi-value green">{hk(funding)}</span><span className="kpi-sub">{promised > 0 ? `+ ${hk(promised)} promised, not yet paid` : 'sponsors, club, tickets'}</span></Card>
+        <Card className="kpi"><span className="kpi-label">{balance >= 0 ? 'Remaining' : 'Short by'}</span><span className={`kpi-value ${balance >= 0 ? 'green' : 'red'}`}>{hk(Math.abs(balance))}</span><span className="kpi-sub">income received − expenses</span></Card>
       </div>
       {s.staff && missing > 0 && <div className="info">{missing} item{missing > 1 ? 's are' : ' is'} missing a payment proof screenshot. <a href="#/expenses">Check expenses</a></div>}
+
+      <Section title="Income">
+        <Card className="list">
+          {kinds.length === 0 && promised === 0 && <Empty>No income recorded yet.</Empty>}
+          {kinds.map((x) => <div key={x.k} className="list-row"><span className="grow">{x.l}</span><b>{hk(x.sum)}</b></div>)}
+          {kinds.length > 0 && <div className="list-row total"><span>Total income received</span><b className="green">{hk(funding)}</b></div>}
+          {promised > 0 && <div className="list-row"><span className="grow amber">Promised, not yet paid <span className="small muted">(not counted in the balance)</span></span><b className="amber">{hk(promised)}</b></div>}
+        </Card>
+      </Section>
 
       <Section title="Expenses by category">
         <Card className="list">

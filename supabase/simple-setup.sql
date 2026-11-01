@@ -65,6 +65,10 @@ create table if not exists public.funding (
   created_at timestamptz not null default now(),
   created_by_name text
 );
+-- Income can be promised (not paid yet) or received. Only received money counts in the balance.
+alter table public.funding add column if not exists status text not null default 'received';
+alter table public.funding drop constraint if exists funding_status_check;
+alter table public.funding add constraint funding_status_check check (status in ('promised','received'));
 
 -- Give each new item the next number in its category, and stamp who changed it
 create or replace function public.trg_exp_item() returns trigger
@@ -146,8 +150,9 @@ begin
     'items', coalesce((select jsonb_agg(jsonb_build_object('code', c.letter || i.seq, 'category_id', i.category_id, 'seq', i.seq,
                 'description', i.description, 'amount', i.amount, 'has_proof', cardinality(i.proof_paths) > 0) order by c.letter, i.seq)
               from public.exp_items i join public.exp_categories c on c.id = i.category_id), '[]'),
-    'funding_total', (select coalesce(sum(amount), 0) from public.funding),
-    'funding_by_kind', coalesce((select jsonb_object_agg(kind, total) from (select kind, sum(amount) total from public.funding group by kind) f), '{}'));
+    'funding_total', (select coalesce(sum(amount), 0) from public.funding where status = 'received'),
+    'funding_by_kind', coalesce((select jsonb_object_agg(kind, total) from (select kind, sum(amount) total from public.funding where status = 'received' group by kind) f), '{}'),
+    'promised_total', (select coalesce(sum(amount), 0) from public.funding where status = 'promised'));
 end $$;
 grant execute on function public.simple_public() to anon, authenticated;
 

@@ -20,7 +20,7 @@ export default function More() {
   return (
     <div className="stack narrow">
       <Card className="list">
-        {[['#/funding', 'Funding', 'Club underwriting, sponsors, tickets'], ['#/print', 'Print item sheets', 'All sheets with screenshots, as one PDF'], ['#/settings', 'Settings', 'Project, categories, team']].map(([h, t, sub]) => (
+        {[['#/income', 'Income', 'Sponsors, club, tickets · promised and received'], ['#/print', 'Print item sheets', 'All sheets with screenshots, as one PDF'], ['#/settings', 'Settings', 'Project, categories, team']].map(([h, t, sub]) => (
           <a key={h} href={h} className="list-row link-row"><span className="grow"><span className="block"><b>{t}</b></span><span className="small muted">{sub}</span></span><span aria-hidden="true">›</span></a>
         ))}
       </Card>

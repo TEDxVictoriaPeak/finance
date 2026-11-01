@@ -9,7 +9,7 @@ export type Item = {
   purpose: string | null; purchased_item: string | null; supplier: string | null; purchase_dates: string[]; amount: number
   remarks: string | null; proof_paths: string[]; created_at: string; created_by_name: string | null; updated_at: string; updated_by_name: string | null
 }
-export type Funding = { id: string; source: string; kind: string; amount: number; received_on: string | null; note: string | null }
+export type Funding = { id: string; source: string; kind: string; amount: number; received_on: string | null; note: string | null; status?: 'promised' | 'received' }
 
 type Ctx = {
   ready: boolean; profile: Profile | null; staff: boolean; admin: boolean

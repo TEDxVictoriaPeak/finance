@@ -1,6 +1,7 @@
 # TEDxVictoriaPeak Finance Portal
 
-> **Current version: Simple.** One row per expense item (A1, A2 …) with payment screenshots, a printable item sheet, and a report in the club's *Service Project Financials* layout (Excel export). Database: run `supabase/simple-setup.sql` once (after `setup.sql`).
+> **Current version: Simple.** One row per expense item (A1, A2 …) with payment screenshots, a printable item sheet, and a report in the club's *Service Project Financials* layout (Excel export). Database: run `supabase/simple-setup.sql` once (after `setup.sql`). If you ran it before the Income update, also run `supabase/update-income.sql`.
+> **Income:** sponsors, club underwriting and tickets, each marked *Promised* or *Received*. Only received money counts in the balance.
 > The full accounting version is kept on the `full-version` branch.
 
 
