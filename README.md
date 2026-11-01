@@ -1,5 +1,9 @@
 # TEDxVictoriaPeak Finance Portal
 
+> **Current version: Simple.** One row per expense item (A1, A2 …) with payment screenshots, a printable item sheet, and a report in the club's *Service Project Financials* layout (Excel export). Database: run `supabase/simple-setup.sql` once (after `setup.sql`).
+> The full accounting version is kept on the `full-version` branch.
+
+
 Mobile-first finance portal for the TEDxVictoriaPeak 2027 organizing committee.
 Free stack: **Supabase** (database, login, receipt storage) + **GitHub Pages** (hosting).
 

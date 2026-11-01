@@ -14,5 +14,7 @@ export function errText(e: any): string {
   const m: string = e?.message || e?.error_description || String(e || 'Something went wrong')
   if (m.includes('Invalid login credentials')) return 'Wrong username or password.'
   if (m.includes('Failed to fetch')) return 'No connection. Check your internet and try again.'
+  if (m.includes('row-level security') || m.includes('permission denied')) return 'You are not allowed to do this. Please log in again.'
+  if (m.includes('relation') && m.includes('does not exist')) return 'The database is not updated yet: run supabase/simple-setup.sql in Supabase (see the guide).'
   return m.replace(/^OVER_BUDGET:\s*/, 'Over budget: ')
 }
