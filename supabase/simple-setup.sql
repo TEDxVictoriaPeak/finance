@@ -9,7 +9,7 @@
 create table if not exists public.project (
   id int primary key default 1 check (id = 1),
   project_name text not null default 'TEDxVictoriaPeak 2027',
-  club_name text not null default 'RC Neoteric HK',
+  club_name text not null default '',
   currency text not null default 'HKD',
   public_view boolean not null default true,
   updated_at timestamptz not null default now()

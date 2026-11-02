@@ -87,7 +87,7 @@ export default function IncomePage() {
             <div className="grid2 tight">
               <Field label="Type"><select value={f.kind} onChange={set('kind')}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
               <Field label="Amount (HK$)"><input inputMode="decimal" value={f.amount} onChange={set('amount')} placeholder="0.00" /></Field>
-              <Field label="From (name)"><input value={f.source} onChange={set('source')} placeholder="e.g. sponsor name / RC Neoteric HK" /></Field>
+              <Field label="From (name)"><input value={f.source} onChange={set('source')} placeholder="e.g. sponsor or club name" /></Field>
               <Field label={promisedMode ? 'Expected by' : 'Date received'}><input type="date" value={f.received_on} onChange={set('received_on')} /></Field>
             </div>
             <Field label="Note (optional)"><input value={f.note} onChange={set('note')} placeholder={promisedMode ? 'e.g. pays after signing the agreement' : ''} /></Field>

@@ -59,7 +59,7 @@ export default function Settings() {
       <Section title="Project">
         <Card className="stack">
           <Field label="Project name"><input value={p.project_name} onChange={(e) => setP({ ...p, project_name: e.target.value })} /></Field>
-          <Field label="Club / organizer name"><input value={p.club_name} onChange={(e) => setP({ ...p, club_name: e.target.value })} /></Field>
+          <Field label="Club / organizer name"><input value={p.club_name} onChange={(e) => setP({ ...p, club_name: e.target.value })} placeholder="Leave empty until confirmed" /></Field>
           <label className="check"><input type="checkbox" checked={p.public_view} onChange={(e) => setP({ ...p, public_view: e.target.checked })} /><span>Anyone with the link can see the Overview (totals and item list, no names or screenshots)</span></label>
           {msg && <div className="ok-box">{msg}</div>}
           <button className="btn primary" onClick={saveProject}>Save</button>

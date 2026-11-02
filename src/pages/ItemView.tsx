@@ -23,7 +23,7 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
     <article className="sheet">
       <div className="sheet-head">
         <h2>ITEM {s.code(item)}</h2>
-        <span>{s.project?.project_name} · {s.project?.club_name}</span>
+        <span>{s.project?.project_name}{s.project?.club_name ? ` · ${s.project.club_name}` : ''}</span>
       </div>
       <p className="sheet-desc">{item.description}</p>
       <table className="sheet-table"><tbody>{rows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>

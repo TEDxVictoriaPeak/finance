@@ -39,7 +39,7 @@ export default function Overview() {
     <div className="stack">
       <Card className="hero">
         <h1>{d.project_name}</h1>
-        <p>{d.club_name} · Income and expenses, updated as soon as an item is added.</p>
+        <p>{d.club_name ? `${d.club_name} · ` : ''}Income and expenses, updated as soon as an item is added.</p>
         {s.staff && <div className="row gap wrap"><a className="btn primary" href="#/add">Add expense</a><a className="btn ghost" href="#/report">See report</a></div>}
       </Card>
 
