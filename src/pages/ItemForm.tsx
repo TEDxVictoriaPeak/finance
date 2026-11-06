@@ -41,7 +41,8 @@ export default function ItemForm({ id }: { id?: string }) {
   }, [id])
 
   const previews = files.map((file) => ({ file, url: URL.createObjectURL(file) }))
-  const pick = (e: React.ChangeEvent<HTMLInputElement>) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = '' }
+  const [menu, setMenu] = useState(false)
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = ''; setMenu(false) }
   const addLink = async () => {
     const v = await dlg.ask({ title: 'Add Google Drive link', message: 'In Google Drive: Share › General access › Anyone with the link › Copy link. Then paste it here.', label: 'Link', required: true, confirmText: 'Add' })
     if (!v) return
@@ -154,12 +155,18 @@ export default function ItemForm({ id }: { id?: string }) {
               ))}
             </div>
             {(previews.some(({ file }) => file.type === 'application/pdf') || keep.some((p) => p.endsWith('.pdf'))) && <p className="info small">PDF receipts open online but do not show on the printed item sheet. If you can, also add a screenshot of the PDF.</p>}
-            <div className="proof-btns">
-              <label className="btn ghost proof-btn"><input type="file" accept="image/*" capture="environment" onChange={pick} hidden />Take photo</label>
-              <label className="btn ghost proof-btn"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden />Choose photo or file</label>
-              <button type="button" className="btn ghost proof-btn" onClick={addLink}>Add Google Drive link</button>
+            <div className="proof-menu-wrap">
+              <button type="button" className="btn ghost proof-add" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>+ Add payment proof</button>
+              {menu && <>
+                <div className="menu-backdrop" onClick={() => setMenu(false)} />
+                <div className="proof-menu" role="menu">
+                  <label role="menuitem"><input type="file" accept="image/*" capture="environment" onChange={pick} hidden /><b>Take photo</b><span>Use the camera, for a paper receipt</span></label>
+                  <label role="menuitem"><input type="file" accept="image/*" multiple onChange={pick} hidden /><b>Photo library</b><span>Screenshots of transfers or online orders</span></label>
+                  <label role="menuitem"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden /><b>Files or Google Drive</b><span>PDF receipts, or files saved in Drive</span></label>
+                  <button type="button" role="menuitem" onClick={() => { setMenu(false); addLink() }}><b>Paste Google Drive link</b><span>If the receipt is only in Drive</span></button>
+                </div>
+              </>}
             </div>
-            <span className="field-hint">On a phone, "Choose photo or file" opens your photos, and also Google Drive (Android: pick Drive; iPhone: Browse › Google Drive). A Drive link must be shared with "Anyone with the link".</span>
           </div>
 
           <Field label="Remarks (optional)" hint='e.g. "Original price − refunds ($745.93 − $226.00)"'>
