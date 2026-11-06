@@ -42,6 +42,8 @@ export default function ItemForm({ id }: { id?: string }) {
 
   const previews = files.map((file) => ({ file, url: URL.createObjectURL(file) }))
   const [menu, setMenu] = useState(false)
+  // Phones and tablets (touch screen) can use the camera; computers get a simple file chooser
+  const phone = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = ''; setMenu(false) }
   const addLink = async () => {
     const v = await dlg.ask({ title: 'Add Google Drive link', message: 'In Google Drive: Share › General access › Anyone with the link › Copy link. Then paste it here.', label: 'Link', required: true, confirmText: 'Add' })
@@ -160,10 +162,14 @@ export default function ItemForm({ id }: { id?: string }) {
               {menu && <>
                 <div className="menu-backdrop" onClick={() => setMenu(false)} />
                 <div className="proof-menu" role="menu">
-                  <label role="menuitem"><input type="file" accept="image/*" capture="environment" onChange={pick} hidden /><b>Take photo</b><span>Use the camera, for a paper receipt</span></label>
-                  <label role="menuitem"><input type="file" accept="image/*" multiple onChange={pick} hidden /><b>Photo library</b><span>Screenshots of transfers or online orders</span></label>
-                  <label role="menuitem"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden /><b>Files or Google Drive</b><span>PDF receipts, or files saved in Drive</span></label>
-                  <button type="button" role="menuitem" onClick={() => { setMenu(false); addLink() }}><b>Paste Google Drive link</b><span>If the receipt is only in Drive</span></button>
+                  {phone ? <>
+                    <label role="menuitem"><input type="file" accept="image/*" capture="environment" onChange={pick} hidden /><b>Take photo</b><span>Opens the camera, for a paper receipt</span></label>
+                    <label role="menuitem"><input type="file" accept="image/*" multiple onChange={pick} hidden /><b>Photo library</b><span>Screenshots of transfers or online orders</span></label>
+                    <label role="menuitem"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden /><b>Files</b><span>PDF receipts. Google Drive shows here if its app is installed</span></label>
+                  </> : (
+                    <label role="menuitem"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden /><b>Choose from this computer</b><span>Photos, screenshots or PDF receipts saved on this computer</span></label>
+                  )}
+                  <button type="button" role="menuitem" onClick={() => { setMenu(false); addLink() }}><b>Paste Google Drive link</b><span>Copy the link from Google Drive and paste it here</span></button>
                 </div>
               </>}
             </div>
