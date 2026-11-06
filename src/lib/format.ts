@@ -105,3 +105,17 @@ export function parseAmount(raw: string): { n: number; err?: undefined } | { n?:
   if (!(n > 0)) return { err: 'Enter an amount above 0.' }
   return { n: Math.round(n * 100) / 100 }
 }
+
+/** Phone photos are often 5–10 MB. Shrink big photos to max 2000 px (JPEG) so uploads are quick and storage lasts. */
+export async function shrinkPhoto(file: File): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 1_500_000) return file
+  try {
+    const bmp = await createImageBitmap(file)
+    const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
+    const blob: Blob | null = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch { return file }
+}

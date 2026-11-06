@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
-import { hk, Item, signedUrls, useStore } from '../lib/store'
+import { hk, Item, signedUrls, useStore, isLink } from '../lib/store'
 import { fmtDate, fmtDateTime } from '../lib/format'
 import { ErrorBox, Loading } from '../components/ui'
 
@@ -32,7 +32,9 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
         <div className="sheet-proofs">
           {item.proof_paths.map((p, k) => (
             <figure key={p}>
-              {p.endsWith('.pdf')
+              {isLink(p)
+                ? <><a href={p} target="_blank" rel="noreferrer" className="pdf big no-print">Open Google Drive proof {k + 1}</a><span className="pdf big print-only">Proof {k + 1} is a Google Drive link: {p}</span></>
+                : p.endsWith('.pdf')
                 ? <><a href={urls[p]} target="_blank" rel="noreferrer" className="pdf big no-print">Open PDF proof {k + 1}</a><span className="pdf big print-only">PDF receipt (proof {k + 1}) is kept in the finance app under item {s.code(item)}. Print it separately and attach it to this sheet.</span></>
                 : urls[p] ? <img src={urls[p]} alt={`Payment proof ${k + 1}`} /> : <span className="pdf">Loading…</span>}
               <figcaption>Proof {k + 1}{item.purchase_dates?.[k] ? ` · purchase date ${fmtDate(item.purchase_dates[k])}` : ''}</figcaption>

@@ -70,10 +70,14 @@ export const hk = (n: number | string | null | undefined) =>
 export const num = (n: number | string | null | undefined) =>
   Number(n || 0).toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+/** A proof can also be a Google Drive (or other) web link instead of an uploaded file */
+export const isLink = (p: string) => /^https?:\/\//i.test(p)
+
 /** Signed links for private screenshots (valid 1 hour) */
 export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
   const out: Record<string, string> = {}
-  const list = paths.filter(Boolean)
+  paths.filter((p) => p && isLink(p)).forEach((p) => (out[p] = p))
+  const list = paths.filter((p) => p && !isLink(p))
   for (let i = 0; i < list.length; i += 100) {
     const { data } = await sb.storage.from('receipts').createSignedUrls(list.slice(i, i + 100), 3600)
     ;(data || []).forEach((d: any) => { if (d.signedUrl) out[d.path] = d.signedUrl })

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
-import { hk, Item, signedUrls, useStore } from '../lib/store'
-import { fmtDate, today, parseAmount } from '../lib/format'
+import { hk, isLink, Item, signedUrls, useStore } from '../lib/store'
+import { fmtDate, today, parseAmount, shrinkPhoto } from '../lib/format'
 import { Card, ErrorBox, Field, Loading, useDialog } from '../components/ui'
 
 export default function ItemForm({ id }: { id?: string }) {
@@ -41,6 +41,14 @@ export default function ItemForm({ id }: { id?: string }) {
   }, [id])
 
   const previews = files.map((file) => ({ file, url: URL.createObjectURL(file) }))
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = '' }
+  const addLink = async () => {
+    const v = await dlg.ask({ title: 'Add Google Drive link', message: 'In Google Drive: Share › General access › Anyone with the link › Copy link. Then paste it here.', label: 'Link', required: true, confirmText: 'Add' })
+    if (!v) return
+    const url = v.trim()
+    if (!isLink(url)) return setErr('Paste the full link, starting with https://')
+    if (!keep.includes(url)) setKeep([...keep, url])
+  }
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(null)
@@ -54,7 +62,8 @@ export default function ItemForm({ id }: { id?: string }) {
     try {
       const itemId = id || crypto.randomUUID()
       const uploaded: string[] = []
-      for (const file of files) {
+      for (const original of files) {
+        const file = await shrinkPhoto(original)
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
         const path = `items/${itemId}/${crypto.randomUUID()}.${ext}`
         const { error } = await sb.storage.from('receipts').upload(path, file, { contentType: file.type || undefined })
@@ -69,7 +78,7 @@ export default function ItemForm({ id }: { id?: string }) {
       }
       const { error } = id ? await sb.from('exp_items').update(row).eq('id', id) : await sb.from('exp_items').insert({ id: itemId, ...row })
       if (error) throw error
-      const removed = (item?.proof_paths || []).filter((p) => !keep.includes(p))
+      const removed = (item?.proof_paths || []).filter((p) => !keep.includes(p) && !isLink(p))
       if (removed.length) await sb.storage.from('receipts').remove(removed)
       location.hash = `#/item/${itemId}`
     } catch (x) { setErr(errText(x)) }
@@ -81,7 +90,8 @@ export default function ItemForm({ id }: { id?: string }) {
     if (!ok || !id) return
     const { error } = await sb.from('exp_items').delete().eq('id', id)
     if (error) return setErr(errText(error))
-    if (item?.proof_paths?.length) await sb.storage.from('receipts').remove(item.proof_paths)
+    const stored = (item?.proof_paths || []).filter((p) => !isLink(p))
+    if (stored.length) await sb.storage.from('receipts').remove(stored)
     location.hash = '#/expenses'
   }
 
@@ -127,12 +137,12 @@ export default function ItemForm({ id }: { id?: string }) {
           </div>
 
           <div className="field">
-            <span className="field-label">Payment proof (screenshots or PDF)</span>
+            <span className="field-label">Payment proof (photo, screenshot, PDF or Drive link)</span>
             <span className="field-hint">Proof that the money was paid (order screenshot, receipt, bank transfer). An invoice or quotation alone is not proof.</span>
             <div className="thumbs">
               {keep.map((p) => (
                 <div key={p} className="thumb">
-                  {urls[p] ? (p.endsWith('.pdf') ? <a href={urls[p]} target="_blank" rel="noreferrer" className="pdf">PDF</a> : <img src={urls[p]} alt="Payment proof" />) : <span className="pdf">…</span>}
+                  {isLink(p) ? <a href={p} target="_blank" rel="noreferrer" className="pdf">Drive link</a> : urls[p] ? (p.endsWith('.pdf') ? <a href={urls[p]} target="_blank" rel="noreferrer" className="pdf">PDF</a> : <img src={urls[p]} alt="Payment proof" />) : <span className="pdf">…</span>}
                   <button type="button" aria-label="Remove screenshot" onClick={() => setKeep(keep.filter((x) => x !== p))}>×</button>
                 </div>
               ))}
@@ -144,7 +154,12 @@ export default function ItemForm({ id }: { id?: string }) {
               ))}
             </div>
             {(previews.some(({ file }) => file.type === 'application/pdf') || keep.some((p) => p.endsWith('.pdf'))) && <p className="info small">PDF receipts open online but do not show on the printed item sheet. If you can, also add a screenshot of the PDF.</p>}
-            <input type="file" accept="image/*,application/pdf" multiple onChange={(e) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = '' }} />
+            <div className="proof-btns">
+              <label className="btn ghost proof-btn"><input type="file" accept="image/*" capture="environment" onChange={pick} hidden />Take photo</label>
+              <label className="btn ghost proof-btn"><input type="file" accept="image/*,application/pdf" multiple onChange={pick} hidden />Choose photo or file</label>
+              <button type="button" className="btn ghost proof-btn" onClick={addLink}>Add Google Drive link</button>
+            </div>
+            <span className="field-hint">On a phone, "Choose photo or file" opens your photos, and also Google Drive (Android: pick Drive; iPhone: Browse › Google Drive). A Drive link must be shared with "Anyone with the link".</span>
           </div>
 
           <Field label="Remarks (optional)" hint='e.g. "Original price − refunds ($745.93 − $226.00)"'>
