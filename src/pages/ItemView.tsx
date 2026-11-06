@@ -33,7 +33,7 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
           {item.proof_paths.map((p, k) => (
             <figure key={p}>
               {p.endsWith('.pdf')
-                ? <a href={urls[p]} target="_blank" rel="noreferrer" className="pdf big">Open PDF proof {k + 1}</a>
+                ? <><a href={urls[p]} target="_blank" rel="noreferrer" className="pdf big no-print">Open PDF proof {k + 1}</a><span className="pdf big print-only">PDF receipt (proof {k + 1}) is kept in the finance app under item {s.code(item)}. Print it separately and attach it to this sheet.</span></>
                 : urls[p] ? <img src={urls[p]} alt={`Payment proof ${k + 1}`} /> : <span className="pdf">Loading…</span>}
               <figcaption>Proof {k + 1}{item.purchase_dates?.[k] ? ` · purchase date ${fmtDate(item.purchase_dates[k])}` : ''}</figcaption>
             </figure>

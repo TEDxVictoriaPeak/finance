@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
 import { hk, Item, signedUrls, useStore } from '../lib/store'
-import { fmtDate, today } from '../lib/format'
+import { fmtDate, today, parseAmount } from '../lib/format'
 import { Card, ErrorBox, Field, Loading, useDialog } from '../components/ui'
 
 export default function ItemForm({ id }: { id?: string }) {
@@ -44,10 +44,11 @@ export default function ItemForm({ id }: { id?: string }) {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(null)
-    const amount = Number(String(f.amount).replace(/[^0-9.]/g, ''))
+    const parsed = parseAmount(f.amount)
     if (!f.category_id) return setErr('Choose a category.')
     if (!f.description.trim()) return setErr('Write a short description, e.g. "Magnetic tags (45 items total)".')
-    if (!amount || amount <= 0) return setErr('Enter the amount in HK$.')
+    if (parsed.err !== undefined) return setErr(parsed.err)
+    const amount = parsed.n
     const allDates = newDate && !dates.includes(newDate) && dates.length === 0 ? [newDate] : dates
     setBusy(true)
     try {
@@ -61,7 +62,7 @@ export default function ItemForm({ id }: { id?: string }) {
         uploaded.push(path)
       }
       const row = {
-        category_id: f.category_id, description: f.description.trim(), amount: Math.round(amount * 100) / 100,
+        category_id: f.category_id, description: f.description.trim(), amount,
         purpose: f.purpose.trim() || null, purchased_item: f.purchased_item.trim() || null, supplier: f.supplier.trim() || null,
         submitted_by: f.submitted_by.trim() || null, submitted_on: f.submitted_on || null, remarks: f.remarks.trim() || null,
         purchase_dates: [...allDates].sort(), proof_paths: [...keep, ...uploaded],
@@ -76,7 +77,7 @@ export default function ItemForm({ id }: { id?: string }) {
   }
 
   const remove = async () => {
-    const ok = await dlg.ask({ title: `Delete item ${item ? s.code(item) : ''}?`, message: 'The item and its screenshots are deleted. Other item numbers stay the same. This is recorded in the activity log.', input: false, confirmText: 'Delete', danger: true })
+    const ok = await dlg.ask({ title: `Delete item ${item ? s.code(item) : ''}?`, message: 'The item and its screenshots are deleted. Other item numbers stay the same, and this number is never given to another item. This is recorded in the activity log.', input: false, confirmText: 'Delete', danger: true })
     if (!ok || !id) return
     const { error } = await sb.from('exp_items').delete().eq('id', id)
     if (error) return setErr(errText(error))
@@ -142,6 +143,7 @@ export default function ItemForm({ id }: { id?: string }) {
                 </div>
               ))}
             </div>
+            {(previews.some(({ file }) => file.type === 'application/pdf') || keep.some((p) => p.endsWith('.pdf'))) && <p className="info small">PDF receipts open online but do not show on the printed item sheet. If you can, also add a screenshot of the PDF.</p>}
             <input type="file" accept="image/*,application/pdf" multiple onChange={(e) => { setFiles([...files, ...Array.from(e.target.files || [])]); e.target.value = '' }} />
           </div>
 
@@ -157,7 +159,7 @@ export default function ItemForm({ id }: { id?: string }) {
               <button className="btn primary" disabled={busy}>{busy ? 'Saving…' : 'Save item'}</button>
             </div>
           </div>
-          {f.amount && <p className="small muted">Amount: {hk(Number(String(f.amount).replace(/[^0-9.]/g, '')))}</p>}
+          {f.amount && parseAmount(f.amount).n !== undefined && <p className="small muted">Amount: {hk(parseAmount(f.amount).n)}</p>}
         </form>
       </Card>
     </div>

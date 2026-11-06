@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
 import { Funding, hk } from '../lib/store'
-import { fmtDate, today } from '../lib/format'
+import { fmtDate, parseAmount, today } from '../lib/format'
 import { Card, Empty, ErrorBox, Field, Section, useDialog } from '../components/ui'
 
 export const KINDS: [string, string][] = [['sponsor', 'Sponsor'], ['club', 'Club underwriting'], ['ticket', 'Ticket sales'], ['other', 'Other']]
@@ -20,8 +20,9 @@ export default function IncomePage() {
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(null)
-    const amount = Number(String(f.amount).replace(/[^0-9.]/g, ''))
-    if (!amount) return setErr('Enter the amount.')
+    const parsed = parseAmount(f.amount)
+    if (parsed.err !== undefined) return setErr(parsed.err)
+    const amount = parsed.n
     const source = f.source.trim() || kindName(f.kind)
     const { error } = await sb.from('funding').insert({ status: f.status, kind: f.kind, source, amount, received_on: f.received_on || null, note: f.note.trim() || null })
     if (error) return setErr(errText(error))

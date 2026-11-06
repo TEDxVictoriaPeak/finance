@@ -94,3 +94,14 @@ export function downloadCSV(name: string, rows: (string | number | null | undefi
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 export const csvMoney = (c: number) => (Number(c || 0) / 100).toFixed(2)
+
+/** Read an amount typed by a person, e.g. "1,234.50" or "HK$88". Returns the number, or an error to show. */
+export function parseAmount(raw: string): { n: number; err?: undefined } | { n?: undefined; err: string } {
+  const t = String(raw ?? '').trim().replace(/^(hk\$|hkd|\$)\s*/i, '').replace(/\s+/g, '')
+  if (!t) return { err: 'Enter the amount in HK$.' }
+  if (t.includes('-')) return { err: 'Amounts cannot be negative. For a refund, lower the amount and explain it in Remarks.' }
+  if (!/^(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$/.test(t)) return { err: 'Write the amount like 1,234.50 (a dot for cents, at most 2 decimals).' }
+  const n = Number(t.replace(/,/g, ''))
+  if (!(n > 0)) return { err: 'Enter an amount above 0.' }
+  return { n: Math.round(n * 100) / 100 }
+}

@@ -262,3 +262,6 @@ fieldset.plain { border: 0; margin: 0; padding: 0; }
 .seg { display: flex; background: var(--gray-bg); border-radius: 10px; padding: 3px; gap: 3px; }
 .seg button { flex: 1; border: 0; background: transparent; border-radius: 8px; padding: 9px 10px; font: inherit; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; }
 .seg button.on { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+.print-only { display: none; }
+@media print { .print-only { display: block; } .pdf.big.print-only { padding: 24px 12px; font-weight: 600; color: #374151; } }

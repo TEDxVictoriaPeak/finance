@@ -70,13 +70,27 @@ alter table public.funding add column if not exists status text not null default
 alter table public.funding drop constraint if exists funding_status_check;
 alter table public.funding add constraint funding_status_check check (status in ('promised','received'));
 
+-- Item numbers are never reused: this remembers the highest number ever given per category
+create table if not exists public.exp_seq (
+  category_id uuid primary key references public.exp_categories(id) on delete cascade,
+  last_seq int not null default 0
+);
+alter table public.exp_seq enable row level security;   -- no policies: only the trigger below uses it
+revoke all on public.exp_seq from anon, authenticated;
+insert into public.exp_seq (category_id, last_seq)
+select category_id, max(seq) from public.exp_items group by category_id
+on conflict (category_id) do update set last_seq = greatest(public.exp_seq.last_seq, excluded.last_seq);
+
 -- Give each new item the next number in its category, and stamp who changed it
 create or replace function public.trg_exp_item() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare m int;
 begin
   if tg_op = 'INSERT' or new.category_id <> old.category_id then
-    perform pg_advisory_xact_lock(hashtext(new.category_id::text));
-    select coalesce(max(seq), 0) + 1 into new.seq from public.exp_items where category_id = new.category_id;
+    select coalesce(max(seq), 0) into m from public.exp_items where category_id = new.category_id;
+    insert into public.exp_seq as q (category_id, last_seq) values (new.category_id, m + 1)
+    on conflict (category_id) do update set last_seq = greatest(q.last_seq, m) + 1
+    returning last_seq into new.seq;
   end if;
   if tg_op = 'INSERT' then new.created_by_name := public.actor_name(); end if;
   new.updated_at := now();
