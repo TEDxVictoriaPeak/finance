@@ -70,6 +70,11 @@ alter table public.funding add column if not exists status text not null default
 alter table public.funding drop constraint if exists funding_status_check;
 alter table public.funding add constraint funding_status_check check (status in ('promised','received'));
 
+-- Reimbursement: who paid with their own money, and when Finance paid them back.
+-- paid_by_member empty = paid from the club / project account.
+alter table public.exp_items add column if not exists paid_by_member text;
+alter table public.exp_items add column if not exists reimbursed_on date;
+
 -- Item numbers are never reused: this remembers the highest number ever given per category
 create table if not exists public.exp_seq (
   category_id uuid primary key references public.exp_categories(id) on delete cascade,

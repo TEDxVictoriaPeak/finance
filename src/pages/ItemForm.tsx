@@ -13,6 +13,8 @@ export default function ItemForm({ id }: { id?: string }) {
     category_id: '', description: '', amount: '', purpose: '', purchased_item: '', supplier: '',
     submitted_by: s.profile?.full_name || '', submitted_on: today(), remarks: '',
   })
+  // Who paid: the club account, or a member with their own money (to reimburse)
+  const [pay, setPay] = useState({ member: false, name: '', reimbursed: false, on: today() })
   const [dates, setDates] = useState<string[]>([])
   const [newDate, setNewDate] = useState(today())
   const [keep, setKeep] = useState<string[]>([])
@@ -33,6 +35,7 @@ export default function ItemForm({ id }: { id?: string }) {
         purchased_item: it.purchased_item || '', supplier: it.supplier || '', submitted_by: it.submitted_by || '',
         submitted_on: it.submitted_on || '', remarks: it.remarks || '',
       })
+      setPay({ member: !!it.paid_by_member, name: it.paid_by_member || '', reimbursed: !!it.reimbursed_on, on: it.reimbursed_on || today() })
       setDates(it.purchase_dates || [])
       setKeep(it.proof_paths || [])
       setUrls(await signedUrls(it.proof_paths || []))
@@ -60,6 +63,7 @@ export default function ItemForm({ id }: { id?: string }) {
     if (!f.description.trim()) return setErr('Write a short description, e.g. "Magnetic tags (45 items total)".')
     if (parsed.err !== undefined) return setErr(parsed.err)
     const amount = parsed.n
+    if (pay.member && !(pay.name.trim() || f.submitted_by.trim())) return setErr('Write the name of the member who paid.')
     const allDates = newDate && !dates.includes(newDate) && dates.length === 0 ? [newDate] : dates
     setBusy(true)
     try {
@@ -77,6 +81,8 @@ export default function ItemForm({ id }: { id?: string }) {
         category_id: f.category_id, description: f.description.trim(), amount,
         purpose: f.purpose.trim() || null, purchased_item: f.purchased_item.trim() || null, supplier: f.supplier.trim() || null,
         submitted_by: f.submitted_by.trim() || null, submitted_on: f.submitted_on || null, remarks: f.remarks.trim() || null,
+        paid_by_member: pay.member ? (pay.name.trim() || f.submitted_by.trim()) : null,
+        reimbursed_on: pay.member && pay.reimbursed ? pay.on || today() : null,
         purchase_dates: [...allDates].sort(), proof_paths: [...keep, ...uploaded],
       }
       const { error } = id ? await sb.from('exp_items').update(row).eq('id', id) : await sb.from('exp_items').insert({ id: itemId, ...row })
@@ -125,6 +131,18 @@ export default function ItemForm({ id }: { id?: string }) {
             <Field label="Supplier"><input value={f.supplier} onChange={set('supplier')} placeholder="e.g. Tao Bao" /></Field>
             <Field label="Submitted by"><input value={f.submitted_by} onChange={set('submitted_by')} /></Field>
             <Field label="Date of submission"><input type="date" value={f.submitted_on} onChange={set('submitted_on')} /></Field>
+          </div>
+          <div className="field">
+            <span className="field-label">Who paid?</span>
+            <div className="seg" role="radiogroup" aria-label="Who paid">
+              <button type="button" role="radio" aria-checked={!pay.member} className={!pay.member ? 'on' : ''} onClick={() => setPay({ ...pay, member: false })}>Club / project account</button>
+              <button type="button" role="radio" aria-checked={pay.member} className={pay.member ? 'on' : ''} onClick={() => setPay({ ...pay, member: true, name: pay.name || f.submitted_by })}>A member, own money</button>
+            </div>
+            {pay.member && <div className="stack reimb">
+              <Field label="Member who paid (to be reimbursed)"><input value={pay.name} onChange={(e) => setPay({ ...pay, name: e.target.value })} placeholder="e.g. McQueen" /></Field>
+              <label className="check"><input type="checkbox" checked={pay.reimbursed} onChange={(e) => setPay({ ...pay, reimbursed: e.target.checked })} /><span>Already paid back</span></label>
+              {pay.reimbursed && <Field label="Date paid back"><input type="date" value={pay.on} onChange={(e) => setPay({ ...pay, on: e.target.value })} /></Field>}
+            </div>}
           </div>
 
           <div className="field">

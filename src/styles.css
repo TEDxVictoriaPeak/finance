@@ -276,3 +276,8 @@ fieldset.plain { border: 0; margin: 0; padding: 0; }
 .proof-menu b { display: block; font-size: 15px; font-weight: 700; }
 .proof-menu span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 .print-only { word-break: break-all; }
+
+.reimb { margin-top: 10px; padding: 12px; background: var(--gray-bg); border-radius: 10px; }
+.owed-late { color: var(--red-text); font-weight: 600; }
+.owed-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.owed-link { color: inherit; font-weight: 600; text-decoration: none; }

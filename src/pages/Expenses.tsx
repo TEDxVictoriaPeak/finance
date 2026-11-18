@@ -49,6 +49,7 @@ export default function Expenses() {
                   <span className="block">{i.description}</span>
                   <span className="small muted">{[i.supplier, i.purchase_dates?.length ? i.purchase_dates.map(fmtDate).join(', ') : null, i.submitted_by].filter(Boolean).join(' · ')}</span>
                 </span>
+                {i.paid_by_member && (i.reimbursed_on ? <span className="badge gray">Reimbursed</span> : <span className="badge amber">Owe {i.paid_by_member}</span>)}
                 {i.proof_paths?.length ? <span className="badge green">{i.proof_paths.length} proof{i.proof_paths.length > 1 ? 's' : ''}</span> : <span className="badge amber">No proof</span>}
                 <b className="nowrap">{hk(i.amount)}</b>
               </a>

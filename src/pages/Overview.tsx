@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
-import { hk, useStore } from '../lib/store'
-import { Card, Empty, ErrorBox, Loading, Section } from '../components/ui'
+import { hk, Item, useStore } from '../lib/store'
+import { fmtDate, today } from '../lib/format'
+import { Card, Empty, ErrorBox, Loading, Section, useDialog } from '../components/ui'
 
 type Pub = { private: boolean; project_name: string; club_name: string; items?: any[]; funding_total?: number; funding_by_kind?: Record<string, number>; promised_total?: number }
 
@@ -9,6 +10,19 @@ export default function Overview() {
   const s = useStore()
   const [d, setD] = useState<Pub | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const dlg = useDialog()
+  const [owed, setOwed] = useState<Item[]>([])
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (!s.staff) return setOwed([])
+    sb.from('exp_items').select('*').order('submitted_on').then(({ data }) => setOwed(((data as Item[]) || []).filter((i) => i.paid_by_member && !i.reimbursed_on)))
+  }, [s.staff, tick])
+  const markPaid = async (i: Item) => {
+    const ok = await dlg.ask({ title: 'Mark as paid back?', message: `${i.paid_by_member} has been paid ${hk(i.amount)} for ${s.code(i)} today.`, input: false, confirmText: 'Mark paid back' })
+    if (!ok) return
+    const { error } = await sb.from('exp_items').update({ reimbursed_on: today() }).eq('id', i.id)
+    if (error) setErr(errText(error)); else setTick(tick + 1)
+  }
   useEffect(() => { sb.rpc('simple_public').then(({ data, error }) => (error ? setErr(errText(error)) : setD(data as Pub))) }, [s.staff])
 
   if (err) return <ErrorBox msg={err} />
@@ -49,6 +63,31 @@ export default function Overview() {
         <Card className="kpi"><span className="kpi-label">{balance >= 0 ? 'Remaining' : 'Short by'}</span><span className={`kpi-value ${balance >= 0 ? 'green' : 'red'}`}>{hk(Math.abs(balance))}</span><span className="kpi-sub">income received − expenses</span></Card>
       </div>
       {s.staff && missing > 0 && <div className="info">{missing} item{missing > 1 ? 's are' : ' is'} missing a payment proof screenshot. <a href="#/expenses">Check expenses</a></div>}
+
+      {s.staff && owed.length > 0 && (() => {
+        const people = [...new Set(owed.map((i) => i.paid_by_member!))].map((name) => ({ name, list: owed.filter((i) => i.paid_by_member === name) }))
+        const days = (i: Item) => Math.floor((Date.parse(today()) - Date.parse(i.submitted_on || i.created_at.slice(0, 10))) / 86400000)
+        return (
+          <Section title={`Owed to members · ${hk(owed.reduce((t, i) => t + Number(i.amount), 0))}`}>
+            <Card className="list">
+              <p className="small muted">Members who paid with their own money and still need to be paid back. Rule: within 14 days of sending the proof.</p>
+              {people.map(({ name, list }) => (
+                <React.Fragment key={name}>
+                  <div className="list-row total"><span className="grow">{name}</span><b>{hk(list.reduce((t, i) => t + Number(i.amount), 0))}</b></div>
+                  {list.map((i) => (
+                    <div key={i.id} className="list-row">
+                      <span className="code-pill">{s.code(i)}</span>
+                      <span className="grow"><a href={`#/item/${i.id}`} className="block owed-link">{i.description}</a>
+                        <span className={`small ${days(i) > 14 ? 'owed-late' : 'muted'}`}>{i.submitted_on ? `Proof sent ${fmtDate(i.submitted_on)} · ` : ''}{days(i)} day{days(i) === 1 ? '' : 's'} waiting{days(i) > 14 ? ' · over 14 days' : ''}</span>
+                        <span className="owed-actions"><b className="nowrap">{hk(i.amount)}</b><button className="btn ghost small-btn" onClick={() => markPaid(i)}>Mark paid back</button></span></span>
+                    </div>
+                  ))}
+                </React.Fragment>
+              ))}
+            </Card>
+          </Section>
+        )
+      })()}
 
       <Section title="Income">
         <Card className="list">

@@ -66,15 +66,15 @@ export default function Report() {
     rows.push([])
     rows.push([{ v: '** Payment proof means evidence of the amount paid (an invoice or estimate alone is not proof). Each code (A1, A2 …) matches an item sheet.', s: 'note' }])
 
-    const detail: any[][] = [H(['Code', 'Category', 'Description', 'Purpose', 'Purchased item', 'Supplier', 'Date(s) of purchase', 'Submitted by', 'Date of submission', 'Amount (HK$)', 'Proof files', 'Remarks'])]
+    const detail: any[][] = [H(['Code', 'Category', 'Description', 'Purpose', 'Purchased item', 'Supplier', 'Date(s) of purchase', 'Submitted by', 'Date of submission', 'Amount (HK$)', 'Proof files', 'Paid by', 'Reimbursed on', 'Remarks'])]
     groups.forEach((g) => g.list.forEach((i) => detail.push([s.code(i), g.c.name, i.description, i.purpose || '', i.purchased_item || '', i.supplier || '',
-      (i.purchase_dates || []).map(fmtDate).join(', '), i.submitted_by || '', i.submitted_on ? { v: i.submitted_on, s: 'date' } : '', { v: Number(i.amount), s: 'money' }, (i.proof_paths || []).length, i.remarks || ''])))
+      (i.purchase_dates || []).map(fmtDate).join(', '), i.submitted_by || '', i.submitted_on ? { v: i.submitted_on, s: 'date' } : '', { v: Number(i.amount), s: 'money' }, (i.proof_paths || []).length, i.paid_by_member ? i.paid_by_member + ' (own money)' : 'Club account', i.reimbursed_on ? { v: i.reimbursed_on, s: 'date' } : (i.paid_by_member ? 'Not yet' : ''), i.remarks || ''])))
     const fund: any[][] = [H(['Status', 'Type', 'Source', 'Date received / expected', 'Amount (HK$)', 'Note'])]
     allIncome.forEach((f) => fund.push([f.status === 'promised' ? 'Promised' : 'Received', KIND[f.kind] || f.kind, f.source, f.received_on ? { v: f.received_on, s: 'date' } : '', { v: Number(f.amount), s: 'money' }, f.note || '']))
 
     const bytes = writeXlsx([
       { name: 'Financials', freeze: 6, widths: [52, 20, 16, 14, 40], rows },
-      { name: 'Items', freeze: 1, widths: [8, 34, 40, 28, 22, 18, 24, 18, 14, 14, 10, 30], rows: detail },
+      { name: 'Items', freeze: 1, widths: [8, 34, 40, 28, 22, 18, 24, 18, 14, 14, 10, 20, 14, 30], rows: detail },
       { name: 'Income', freeze: 1, widths: [12, 34, 30, 16, 16, 30], rows: fund },
     ])
     const a = document.createElement('a')
@@ -125,6 +125,7 @@ export default function Report() {
         {groups.length === 0 && <p className="muted">No expense items yet.</p>}
       </Card>
       <p className="small muted no-print">Total {hk(total)} · {items.length} items</p>
+      {(() => { const o = items.filter((i) => i.paid_by_member && !i.reimbursed_on); return o.length > 0 && <p className="info small no-print">Still owed to members: <b>{hk(o.reduce((t, i) => t + Number(i.amount), 0))}</b> ({o.length} item{o.length > 1 ? 's' : ''}). These are already counted in the expenses above. <a href="#/">See who</a></p> })()}
     </div>
   )
 }

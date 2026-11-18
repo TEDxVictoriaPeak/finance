@@ -7,7 +7,7 @@ export type Category = { id: string; letter: string; name: string }
 export type Item = {
   id: string; category_id: string; seq: number; description: string; submitted_by: string | null; submitted_on: string | null
   purpose: string | null; purchased_item: string | null; supplier: string | null; purchase_dates: string[]; amount: number
-  remarks: string | null; proof_paths: string[]; created_at: string; created_by_name: string | null; updated_at: string; updated_by_name: string | null
+  remarks: string | null; proof_paths: string[]; paid_by_member?: string | null; reimbursed_on?: string | null; created_at: string; created_by_name: string | null; updated_at: string; updated_by_name: string | null
 }
 export type Funding = { id: string; source: string; kind: string; amount: number; received_on: string | null; note: string | null; status?: 'promised' | 'received' }
 

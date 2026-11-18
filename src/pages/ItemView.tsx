@@ -17,7 +17,9 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
     ['Supplier', item.supplier || '—'],
     ['Date of Purchase', item.purchase_dates?.length ? item.purchase_dates.map(fmtDate).join(', ') : '—'],
     ['Amount (HK$)', hk(item.amount).replace('HK$', '')],
+    ['Paid by', item.paid_by_member ? `${item.paid_by_member} (own money)` : 'Club / project account'],
   ]
+  if (item.paid_by_member) rows.push(['Reimbursed', item.reimbursed_on ? `Yes, on ${fmtDate(item.reimbursed_on)}` : 'Not yet'])
   if (item.remarks) rows.push(['Remarks', item.remarks])
   return (
     <article className="sheet">
