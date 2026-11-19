@@ -27,24 +27,27 @@ const toBase64 = (f: Blob) =>
     r.readAsDataURL(f)
   })
 
-let notSetUp = false
-/** True once we know the reader is not installed yet, so we stop trying in this visit */
-export const readerOff = () => notSetUp
+/** Kept for compatibility: the reader is never switched off silently any more */
+export const readerOff = () => false
+
+const SETUP_HINT = 'In Supabase › Edge Functions, check that a function named exactly scan-receipt is deployed, and turn off "Verify JWT" for it (the reader checks the login itself).'
 
 export async function readReceipt(file: File, categories: string): Promise<{ result?: Scan; error?: string; off?: boolean }> {
-  if (notSetUp) return { off: true }
   const f = file.type === 'application/pdf' ? file : await shrinkPhoto(file)
   if (f.size > 10_000_000) return { error: 'This file is too big to read automatically. Please fill in by hand.' }
   const data = await toBase64(f)
-  const { data: res, error } = await sb.functions.invoke('scan-receipt', { body: { mime: f.type, data, categories } })
+  let res: any, error: any
+  try { ({ data: res, error } = await sb.functions.invoke('scan-receipt', { body: { mime: f.type, data, categories } })) }
+  catch (e) { error = e }
   if (error) {
-    const ctx: any = (error as any).context
-    const status = ctx?.status
+    const ctx: any = error.context
+    const status: number | undefined = typeof ctx?.status === 'number' ? ctx.status : undefined
     let msg = ''
-    try { msg = (await ctx?.json?.())?.error || '' } catch { /* not json */ }
-    if (status === 404 || /not found|failed to send|fetch/i.test(msg || error.message)) { notSetUp = true; return { off: true } }
-    if (/not set up yet/i.test(msg)) { notSetUp = true; return { off: true, error: msg } }
-    return { error: msg || 'Could not read this receipt. Please fill in by hand.' }
+    try { const j = await ctx?.json?.(); msg = j?.error || j?.message || j?.msg || '' } catch { /* not json */ }
+    if (status === 404) return { error: `Receipt reader not found (404). ${SETUP_HINT}` }
+    if (status === 401) return { error: `Receipt reader refused the login (401${msg ? `: ${msg}` : ''}). ${SETUP_HINT}` }
+    if (!status) return { error: `Could not reach the receipt reader (${error.message || 'network error'}). ${SETUP_HINT}` }
+    return { error: msg ? `${msg} (error ${status})` : `Receipt reader error ${status}. Please fill in by hand, or send a screenshot of this message.` }
   }
   if (!res?.result) return { error: res?.error || 'Could not read this receipt. Please fill in by hand.' }
   return { result: res.result as Scan }
