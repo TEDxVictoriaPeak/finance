@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization') || ''
     const check = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/is_staff`, {
       method: 'POST',
-      headers: { Authorization: auth, apikey: Deno.env.get('SUPABASE_ANON_KEY') || '', 'Content-Type': 'application/json' },
+      headers: { Authorization: auth, apikey: req.headers.get('apikey') || Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '', 'Content-Type': 'application/json' },
       body: '{}',
     })
     if (!check.ok || (await check.json()) !== true) return reply({ error: 'Only the finance team can read receipts. Please log in again.' }, 403)
