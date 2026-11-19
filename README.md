@@ -2,6 +2,8 @@
 
 > **Current version: Simple.** One row per expense item (A1, A2 …) with payment screenshots, a printable item sheet, and a report in the club's *Service Project Financials* layout (Excel export). Database: run `supabase/simple-setup.sql` once (after `setup.sql`). It is safe to run again: after any update, just run the latest `simple-setup.sql` once more.
 > **Income:** sponsors, club underwriting and tickets, each marked *Promised* or *Received*. Only received money counts in the balance.
+
+> **Receipt reader (optional, free):** `supabase/functions/scan-receipt` reads receipts with Google Gemini's free tier and fills in the form for a person to check. Set it up once: create a Gemini API key, add it in Supabase › Edge Functions › Secrets as `GEMINI_API_KEY`, then deploy the function named `scan-receipt` with the code from that file. Without it, the app works the same and everything is typed by hand.
 > The full accounting version is kept on the `full-version` branch.
 
 

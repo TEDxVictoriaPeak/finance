@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
-import { hk, Item, signedUrls, useStore, isLink } from '../lib/store'
+import { hk, Item, signedUrls, useStore, isLink, num } from '../lib/store'
 import { fmtDate, fmtDateTime } from '../lib/format'
 import { ErrorBox, Loading } from '../components/ui'
 
@@ -16,7 +16,7 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
     ['Purchased Item', item.purchased_item || '—'],
     ['Supplier', item.supplier || '—'],
     ['Date of Purchase', item.purchase_dates?.length ? item.purchase_dates.map(fmtDate).join(', ') : '—'],
-    ['Amount (HK$)', hk(item.amount).replace('HK$', '')],
+    ['Amount (HK$)', hk(item.amount).replace('HK$', '') + (item.orig_currency && item.orig_amount != null ? ` (paid ${item.orig_currency} ${num(item.orig_amount)})` : '')],
     ['Paid by', item.paid_by_member ? `${item.paid_by_member} (own money)` : 'Club / project account'],
   ]
   if (item.paid_by_member) rows.push(['Reimbursed', item.reimbursed_on ? `Yes, on ${fmtDate(item.reimbursed_on)}` : 'Not yet'])
@@ -30,6 +30,7 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
       <p className="sheet-desc">{item.description}</p>
       <table className="sheet-table"><tbody>{rows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
       <h3 className="sheet-sub">Payment proof</h3>
+      {item.no_receipt_reason && <p className="no-receipt-note"><b>No receipt.</b> Reason: {item.no_receipt_reason}.{item.no_receipt_approved_by ? ` Approved by ${item.no_receipt_approved_by}.` : ''}</p>}
       {item.proof_paths?.length ? (
         <div className="sheet-proofs">
           {item.proof_paths.map((p, k) => (
@@ -43,7 +44,7 @@ export function ItemSheet({ item, urls }: { item: Item; urls: Record<string, str
             </figure>
           ))}
         </div>
-      ) : <p className="sheet-missing">No payment proof attached yet.</p>}
+      ) : !item.no_receipt_reason && <p className="sheet-missing">No payment proof attached yet.</p>}
     </article>
   )
 }

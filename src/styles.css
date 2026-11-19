@@ -281,3 +281,20 @@ fieldset.plain { border: 0; margin: 0; padding: 0; }
 .owed-late { color: var(--red-text); font-weight: 600; }
 .owed-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .owed-link { color: inherit; font-weight: 600; text-decoration: none; }
+
+/* Receipt reader: suggested values to check */
+.form-step { font-size: 16px; margin: 6px 0 -4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.autofill input, .autofill select, .autofill textarea, .autofill .chips .chip { background: #fff8d6 !important; border-color: #e5b700 !important; }
+.autofill-key { background: #fff8d6; border: 1px solid #e5b700; border-radius: 4px; padding: 0 4px; }
+.scan-box { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+.scan-box ul { margin: 6px 0 0; padding-left: 18px; }
+.scan-box.reading { background: var(--gray-bg); color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.scan-box.done { background: #fff8d6; border: 1px solid #f1d36b; }
+.scan-box.error { background: var(--red-bg); color: var(--red-text); }
+.read-btn { margin-top: 8px; }
+.no-receipt { margin-top: 10px; }
+.spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.no-receipt-note { background: var(--gray-bg); border-radius: 8px; padding: 10px 12px; }
+.income-proofs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.income-proofs .chip a { color: inherit; text-decoration: none; }

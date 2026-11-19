@@ -75,6 +75,15 @@ alter table public.funding add constraint funding_status_check check (status in 
 alter table public.exp_items add column if not exists paid_by_member text;
 alter table public.exp_items add column if not exists reimbursed_on date;
 
+-- Paid in another currency (e.g. USD 6.68 online). "amount" is always the HK$ actually charged.
+alter table public.exp_items add column if not exists orig_currency text;
+alter table public.exp_items add column if not exists orig_amount numeric(12,2);
+-- No receipt at all: a written reason and who approved it (instead of a proof)
+alter table public.exp_items add column if not exists no_receipt_reason text;
+alter table public.exp_items add column if not exists no_receipt_approved_by text;
+-- Proof for money coming in (sponsor transfer screenshot, agreement)
+alter table public.funding add column if not exists proof_paths text[] not null default '{}';
+
 -- Item numbers are never reused: this remembers the highest number ever given per category
 create table if not exists public.exp_seq (
   category_id uuid primary key references public.exp_categories(id) on delete cascade,
@@ -167,7 +176,7 @@ begin
   return jsonb_build_object(
     'private', false, 'project_name', p.project_name, 'club_name', p.club_name,
     'items', coalesce((select jsonb_agg(jsonb_build_object('code', c.letter || i.seq, 'category_id', i.category_id, 'seq', i.seq,
-                'description', i.description, 'amount', i.amount, 'has_proof', cardinality(i.proof_paths) > 0) order by c.letter, i.seq)
+                'description', i.description, 'amount', i.amount, 'has_proof', cardinality(i.proof_paths) > 0 or i.no_receipt_reason is not null) order by c.letter, i.seq)
               from public.exp_items i join public.exp_categories c on c.id = i.category_id), '[]'),
     'funding_total', (select coalesce(sum(amount), 0) from public.funding where status = 'received'),
     'funding_by_kind', coalesce((select jsonb_object_agg(kind, total) from (select kind, sum(amount) total from public.funding where status = 'received' group by kind) f), '{}'),
@@ -178,7 +187,8 @@ grant execute on function public.simple_public() to anon, authenticated;
 -- Screenshots: stored privately under items/, only the logged-in team can see them
 drop policy if exists "team uploads item proofs" on storage.objects;
 create policy "team uploads item proofs" on storage.objects for insert to authenticated
-  with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = 'items' and public.is_staff());
+  with check (bucket_id = 'receipts' and (storage.foldername(name))[1] in ('items', 'income') and public.is_staff());
+grant execute on function public.is_staff() to authenticated;   -- used by the receipt reader
 drop policy if exists "team deletes receipts" on storage.objects;
 create policy "team deletes receipts" on storage.objects for delete to authenticated
   using (bucket_id = 'receipts' and public.is_staff());

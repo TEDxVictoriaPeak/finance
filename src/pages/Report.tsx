@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { sb, errText } from '../lib/supabase'
-import { Funding, hk, Item, num, useStore } from '../lib/store'
+import { Funding, hk, Item, num, useStore, remarkLine } from '../lib/store'
 import { fmtDate, today } from '../lib/format'
 import { writeXlsx } from '../lib/xlsx.js'
 import { Card, ErrorBox, Loading } from '../components/ui'
@@ -51,7 +51,7 @@ export default function Report() {
       const first = head + 1, last = head + g.list.length
       subRows.push(head)
       rows.push([{ v: g.c.name, s: 'section' }, { f: `SUM(C${first}:C${last})`, s: 'moneyB' }, { v: '', s: 'section' }, { v: '', s: 'section' }, { v: '', s: 'section' }])
-      g.list.forEach((i) => rows.push(['   - ' + i.description, '', { v: Number(i.amount), s: 'money' }, s.code(i), i.remarks || '']))
+      g.list.forEach((i) => rows.push(['   - ' + i.description, '', { v: Number(i.amount), s: 'money' }, s.code(i) + (i.no_receipt_reason && !(i.proof_paths || []).length ? ' (no receipt)' : ''), remarkLine(i)]))
     })
     rows.push([])
     const totalRow = rows.length + 1
@@ -66,16 +66,16 @@ export default function Report() {
     rows.push([])
     rows.push([{ v: '** Payment proof means evidence of the amount paid (an invoice or estimate alone is not proof). Each code (A1, A2 …) matches an item sheet.', s: 'note' }])
 
-    const detail: any[][] = [H(['Code', 'Category', 'Description', 'Purpose', 'Purchased item', 'Supplier', 'Date(s) of purchase', 'Submitted by', 'Date of submission', 'Amount (HK$)', 'Proof files', 'Paid by', 'Reimbursed on', 'Remarks'])]
+    const detail: any[][] = [H(['Code', 'Category', 'Description', 'Purpose', 'Purchased item', 'Supplier', 'Date(s) of purchase', 'Submitted by', 'Date of submission', 'Amount (HK$)', 'Original currency', 'Original amount', 'Proof files', 'No receipt: reason', 'Paid by', 'Reimbursed on', 'Remarks'])]
     groups.forEach((g) => g.list.forEach((i) => detail.push([s.code(i), g.c.name, i.description, i.purpose || '', i.purchased_item || '', i.supplier || '',
-      (i.purchase_dates || []).map(fmtDate).join(', '), i.submitted_by || '', i.submitted_on ? { v: i.submitted_on, s: 'date' } : '', { v: Number(i.amount), s: 'money' }, (i.proof_paths || []).length, i.paid_by_member ? i.paid_by_member + ' (own money)' : 'Club account', i.reimbursed_on ? { v: i.reimbursed_on, s: 'date' } : (i.paid_by_member ? 'Not yet' : ''), i.remarks || ''])))
-    const fund: any[][] = [H(['Status', 'Type', 'Source', 'Date received / expected', 'Amount (HK$)', 'Note'])]
-    allIncome.forEach((f) => fund.push([f.status === 'promised' ? 'Promised' : 'Received', KIND[f.kind] || f.kind, f.source, f.received_on ? { v: f.received_on, s: 'date' } : '', { v: Number(f.amount), s: 'money' }, f.note || '']))
+      (i.purchase_dates || []).map(fmtDate).join(', '), i.submitted_by || '', i.submitted_on ? { v: i.submitted_on, s: 'date' } : '', { v: Number(i.amount), s: 'money' }, i.orig_currency || '', i.orig_amount != null ? { v: Number(i.orig_amount), s: 'money' } : '', (i.proof_paths || []).length, i.no_receipt_reason ? i.no_receipt_reason + (i.no_receipt_approved_by ? ' (approved by ' + i.no_receipt_approved_by + ')' : '') : '', i.paid_by_member ? i.paid_by_member + ' (own money)' : 'Club account', i.reimbursed_on ? { v: i.reimbursed_on, s: 'date' } : (i.paid_by_member ? 'Not yet' : ''), i.remarks || ''])))
+    const fund: any[][] = [H(['Status', 'Type', 'Source', 'Date received / expected', 'Amount (HK$)', 'Proof files', 'Note'])]
+    allIncome.forEach((f) => fund.push([f.status === 'promised' ? 'Promised' : 'Received', KIND[f.kind] || f.kind, f.source, f.received_on ? { v: f.received_on, s: 'date' } : '', { v: Number(f.amount), s: 'money' }, (f.proof_paths || []).length, f.note || '']))
 
     const bytes = writeXlsx([
       { name: 'Financials', freeze: 6, widths: [52, 20, 16, 14, 40], rows },
-      { name: 'Items', freeze: 1, widths: [8, 34, 40, 28, 22, 18, 24, 18, 14, 14, 10, 20, 14, 30], rows: detail },
-      { name: 'Income', freeze: 1, widths: [12, 34, 30, 16, 16, 30], rows: fund },
+      { name: 'Items', freeze: 1, widths: [8, 34, 40, 28, 22, 18, 24, 18, 14, 14, 10, 12, 10, 28, 20, 14, 30], rows: detail },
+      { name: 'Income', freeze: 1, widths: [12, 34, 30, 16, 16, 10, 30], rows: fund },
     ])
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
@@ -108,7 +108,7 @@ export default function Report() {
                   <tr className="cat-row"><td>{g.c.name}</td><td className="num">{num(g.sum)}</td><td /><td /><td /></tr>
                   {g.list.map((i) => (
                     <tr key={i.id} className="click" onClick={() => (location.hash = `#/item/${i.id}`)}>
-                      <td className="indent">– {i.description}</td><td /><td className="num">{num(i.amount)}</td><td><span className="code-pill">{s.code(i)}</span></td><td className="small">{i.remarks}</td>
+                      <td className="indent">– {i.description}</td><td /><td className="num">{num(i.amount)}</td><td><span className="code-pill">{s.code(i)}</span>{i.no_receipt_reason && !(i.proof_paths || []).length ? <span className="small muted"> no receipt</span> : null}</td><td className="small">{remarkLine(i)}</td>
                     </tr>
                   ))}
                 </React.Fragment>

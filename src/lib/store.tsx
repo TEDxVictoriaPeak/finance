@@ -7,9 +7,9 @@ export type Category = { id: string; letter: string; name: string }
 export type Item = {
   id: string; category_id: string; seq: number; description: string; submitted_by: string | null; submitted_on: string | null
   purpose: string | null; purchased_item: string | null; supplier: string | null; purchase_dates: string[]; amount: number
-  remarks: string | null; proof_paths: string[]; paid_by_member?: string | null; reimbursed_on?: string | null; created_at: string; created_by_name: string | null; updated_at: string; updated_by_name: string | null
+  remarks: string | null; proof_paths: string[]; paid_by_member?: string | null; reimbursed_on?: string | null; orig_currency?: string | null; orig_amount?: number | null; no_receipt_reason?: string | null; no_receipt_approved_by?: string | null; created_at: string; created_by_name: string | null; updated_at: string; updated_by_name: string | null
 }
-export type Funding = { id: string; source: string; kind: string; amount: number; received_on: string | null; note: string | null; status?: 'promised' | 'received' }
+export type Funding = { id: string; source: string; kind: string; amount: number; received_on: string | null; note: string | null; status?: 'promised' | 'received'; proof_paths?: string[] }
 
 type Ctx = {
   ready: boolean; profile: Profile | null; staff: boolean; admin: boolean
@@ -83,4 +83,13 @@ export async function signedUrls(paths: string[]): Promise<Record<string, string
     ;(data || []).forEach((d: any) => { if (d.signedUrl) out[d.path] = d.signedUrl })
   }
   return out
+}
+
+/** Extra facts for the report's Remarks column: foreign currency and missing receipt */
+export function remarkLine(i: Item) {
+  return [
+    i.orig_currency && i.orig_amount != null ? `Paid ${i.orig_currency} ${num(i.orig_amount)}` : null,
+    i.no_receipt_reason ? `No receipt: ${i.no_receipt_reason}${i.no_receipt_approved_by ? ` (approved by ${i.no_receipt_approved_by})` : ''}` : null,
+    i.remarks || null,
+  ].filter(Boolean).join(' · ')
 }
